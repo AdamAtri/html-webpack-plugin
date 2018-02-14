@@ -512,7 +512,18 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
   // Add styles to the head
   head = head.concat(styles);
   // Add scripts to body or head
-  if (this.options.inject === 'head') {
+  if (!! this.options.headScripts) {
+    var hScripts = this.options.headScripts;
+    head = head.concat(scripts.filter((s) => {
+      var src = s.attributes.src;
+      return hScripts.indexOf(src) > -1;
+    }));
+    body = body.concat(scripts.filter((s) => {
+      var src = s.attributes.src;
+      return hScripts.indexOf(src) < 0;
+    }))
+  }
+  else if (this.options.inject === 'head') {
     head = head.concat(scripts);
   } else {
     body = body.concat(scripts);
