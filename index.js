@@ -509,6 +509,19 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
       }
     });
   }
+  if (this.options.icons) {
+    head = head.concat(this.options.icons.map(icon => {
+      return {
+        tagName: 'link',
+        selfClosingTag: selfClosingTag,
+        attributes: {
+          rel: 'icon',
+          type: 'image/png',
+          href: icon
+        }
+      }
+    }));
+  }
   // Add styles to the head
   head = head.concat(styles);
   // Add scripts to body or head
