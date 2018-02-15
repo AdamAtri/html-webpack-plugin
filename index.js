@@ -524,6 +524,20 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
   }
   // Add styles to the head
   head = head.concat(styles);
+  
+  // Add mount points to the body if requested
+  if (!!this.options.mountPoints) {
+    body = body.concat(this.options.mountPoints.map( mp => {
+      return {
+        tagName: 'div',
+        closeTag: true,
+        attributes: {
+          id: mp
+        }
+      };
+    }))
+  }
+  
   // Add scripts to body or head
   if (!! this.options.headScripts) {
     var hScripts = this.options.headScripts;
