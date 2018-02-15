@@ -24,7 +24,11 @@ function HtmlWebpackPlugin (options) {
     chunks: 'all',
     excludeChunks: [],
     title: 'Webpack App',
-    xhtml: false
+    xhtml: false,
+    mountPoints: [],
+    headScripts: [],
+    icons:[],
+    miscTags:[]
   }, options);
 }
 
@@ -146,7 +150,10 @@ HtmlWebpackPlugin.prototype.apply = function (compiler) {
         var assets = result.assets;
         // Prepare script and link tags
         var assetTags = self.generateAssetTags(assets);
-        var pluginArgs = {head: assetTags.head, body: assetTags.body, plugin: self, chunks: chunks, outputName: self.childCompilationOutputName};
+        var genMiscTags = self.generateMiscellaneousTags(assets);
+        var tags = self.mergeTags(assetTags, genMiscTags);
+        var pluginArgs = { head: tags.head, body: tags.body, plugin: self,
+                           chunks: chunks, outputName: self.childCompilationOutputName };
         // Allow plugins to change the assetTag definitions
         return applyPluginsAsyncWaterfall('html-webpack-plugin-alter-asset-tags', true, pluginArgs)
           .then(function (result) {
@@ -414,7 +421,9 @@ HtmlWebpackPlugin.prototype.htmlWebpackPluginAssets = function (compilation, chu
     // Will contain the html5 appcache manifest files if it exists
     manifest: Object.keys(compilation.assets).filter(function (assetFile) {
       return path.extname(assetFile) === '.appcache';
-    })[0]
+    })[0],
+    // Will contain miscellaneous tags that will be added to the head
+    miscTags: []
   };
 
   // Append a hash for cache busting
@@ -462,10 +471,64 @@ HtmlWebpackPlugin.prototype.htmlWebpackPluginAssets = function (compilation, chu
   // Duplicate css assets can occur on occasion if more than one chunk
   // requires the same css.
   assets.css = _.uniq(assets.css);
+  // Add miscellaneous tags
+  assets.miscTags = assets.miscTags.concat(self.options.miscTags);
 
   return assets;
 };
 
+HtmlWebpackPlugin.prototype.mergeTags = function (assetTags, genMiscTags) {
+  var result = {
+    head: assetTags.head,
+    body: assetTags.body
+  };
+  genMiscTags.head.forEach( tag => {
+    if (tag.frontload) result.head.unshift(tag);
+    else result.head.push(tag);
+  });
+  genMiscTags.body.forEach( tag => {
+    if (tag.frontload) {
+      if (tag.tagName === 'script') {
+        var scripts = result.body.filter(tag =>  tag.tagName === 'script');
+        if (scripts.length > 0) {
+          var top = result.body.slice(0, result.body.indexOf(scripts[0]));
+          var bottom = result.body.slice(result.body.indexOf(scripts[0]), result.body.length);
+          top.push(tag);
+          result.body = top.concat(bottom);
+        }
+        else result.body.push(tag);
+      }
+      else {
+        result.body.unshift(tag);
+      }
+    }
+    else result.body.push(tag);
+  });
+  return result;
+};
+
+HtmlWebpackPlugin.prototype.generateMiscellaneousTags = function (assets) {
+  var head = [], body = [];
+  var selfClosingTag = !!this.options.xhtml;
+  _.each(assets.miscTags, tag => {
+    var result = {
+      tagName: tag.tagName,
+      attributes: tag.attributes
+    }
+    if (tag.closeTag)
+      result.closeTag = true;
+    else
+      result.selfClosingTag = selfClosingTag
+
+    result.frontload = tag.frontload;
+
+    if (tag.head)
+      head.push(result);
+    else
+      body.push(result);
+  });
+  return {head: head, body:body}
+};
 /**
  * Injects the assets into the given html string
  */
@@ -524,7 +587,7 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
   }
   // Add styles to the head
   head = head.concat(styles);
-  
+
   // Add mount points to the body if requested
   if (!!this.options.mountPoints) {
     body = body.concat(this.options.mountPoints.map( mp => {
@@ -537,7 +600,6 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
       };
     }))
   }
-  
   // Add scripts to body or head
   if (!! this.options.headScripts) {
     var hScripts = this.options.headScripts;
@@ -548,13 +610,14 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
     body = body.concat(scripts.filter((s) => {
       var src = s.attributes.src;
       return hScripts.indexOf(src) < 0;
-    }))
+    }));
   }
   else if (this.options.inject === 'head') {
     head = head.concat(scripts);
   } else {
     body = body.concat(scripts);
   }
+
   return {head: head, body: body};
 };
 
