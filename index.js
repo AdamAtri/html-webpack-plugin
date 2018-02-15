@@ -482,21 +482,30 @@ HtmlWebpackPlugin.prototype.mergeTags = function (assetTags, genMiscTags) {
     head: assetTags.head,
     body: assetTags.body
   };
+
+  var frontloadScript = ( tag, scripts, array ) => {
+    var top = array.slice(0, array.indexOf(scripts[0]));
+    var bottom = array.slice(array.indexOf(scripts[0]), array.length);
+    top.push(tag);
+    return top.concat(bottom);
+  };
   genMiscTags.head.forEach( tag => {
-    if (tag.frontload) result.head.unshift(tag);
+    if (tag.frontload) {
+      if (tag.tagName === 'script') {
+        var scripts = result.head.filter(tag =>  tag.tagName === 'script');
+        if (scripts.length > 0) { result.head = frontloadScript(tag, scripts, result.head); }
+      }
+      else { result.head.unshift(tag); }
+    }
     else result.head.push(tag);
   });
   genMiscTags.body.forEach( tag => {
     if (tag.frontload) {
       if (tag.tagName === 'script') {
+        // frontload script tags ahead of other scripts, not other tag-types
         var scripts = result.body.filter(tag =>  tag.tagName === 'script');
-        if (scripts.length > 0) {
-          var top = result.body.slice(0, result.body.indexOf(scripts[0]));
-          var bottom = result.body.slice(result.body.indexOf(scripts[0]), result.body.length);
-          top.push(tag);
-          result.body = top.concat(bottom);
-        }
-        else result.body.push(tag);
+        if (scripts.length > 0) { result.body = frontloadScript(tag, scripts, result.body); }
+        else { result.body.push(tag); }
       }
       else {
         result.body.unshift(tag);
