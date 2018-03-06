@@ -27,8 +27,8 @@ function HtmlWebpackPlugin (options) {
     xhtml: false,
     mountPoints: [],
     headScripts: [],
-    icons:[],
-    miscTags:[]
+    icons: [],
+    miscTags: []
   }, options);
 }
 
@@ -483,60 +483,64 @@ HtmlWebpackPlugin.prototype.mergeTags = function (assetTags, genMiscTags) {
     body: assetTags.body
   };
 
-  var frontloadScript = ( tag, scripts, array ) => {
+  var frontloadScript = (tag, scripts, array) => {
     var top = array.slice(0, array.indexOf(scripts[0]));
     var bottom = array.slice(array.indexOf(scripts[0]), array.length);
     top.push(tag);
     return top.concat(bottom);
   };
-  genMiscTags.head.forEach( tag => {
+  genMiscTags.head.forEach(tag => {
     if (tag.frontload) {
       if (tag.tagName === 'script') {
-        var scripts = result.head.filter(tag =>  tag.tagName === 'script');
-        if (scripts.length > 0) { result.head = frontloadScript(tag, scripts, result.head); }
+        var scripts = result.head.filter(tag => tag.tagName === 'script');
+        if (scripts.length > 0) {
+          result.head = frontloadScript(tag, scripts, result.head);
+        }
+      } else {
+        result.head.unshift(tag);
       }
-      else { result.head.unshift(tag); }
-    }
-    else result.head.push(tag);
+    } else result.head.push(tag);
   });
-  genMiscTags.body.forEach( tag => {
+  genMiscTags.body.forEach(tag => {
     if (tag.frontload) {
       if (tag.tagName === 'script') {
         // frontload script tags ahead of other scripts, not other tag-types
-        var scripts = result.body.filter(tag =>  tag.tagName === 'script');
-        if (scripts.length > 0) { result.body = frontloadScript(tag, scripts, result.body); }
-        else { result.body.push(tag); }
-      }
-      else {
+        var scripts = result.body.filter(tag => tag.tagName === 'script');
+        if (scripts.length > 0) {
+          result.body = frontloadScript(tag, scripts, result.body);
+        } else { result.body.push(tag); }
+      } else {
         result.body.unshift(tag);
       }
-    }
-    else result.body.push(tag);
+    } else result.body.push(tag);
   });
   return result;
 };
 
 HtmlWebpackPlugin.prototype.generateMiscellaneousTags = function (assets) {
-  var head = [], body = [];
+  var head = [];
+  var body = [];
   var selfClosingTag = !!this.options.xhtml;
   _.each(assets.miscTags, tag => {
     var result = {
       tagName: tag.tagName,
       attributes: tag.attributes
-    }
-    if (tag.closeTag)
+    };
+    if (tag.closeTag) {
       result.closeTag = true;
-    else
-      result.selfClosingTag = selfClosingTag
+    } else {
+      result.selfClosingTag = selfClosingTag;
+    }
 
     result.frontload = tag.frontload;
 
-    if (tag.head)
+    if (tag.head) {
       head.push(result);
-    else
+    } else {
       body.push(result);
+    }
   });
-  return {head: head, body:body}
+  return {head: head, body: body};
 };
 /**
  * Injects the assets into the given html string
@@ -591,15 +595,15 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
           type: 'image/png',
           href: icon
         }
-      }
+      };
     }));
   }
   // Add styles to the head
   head = head.concat(styles);
 
   // Add mount points to the body if requested
-  if (!!this.options.mountPoints) {
-    body = body.concat(this.options.mountPoints.map( mp => {
+  if (this.options.mountPoints) {
+    body = body.concat(this.options.mountPoints.map(mp => {
       return {
         tagName: 'div',
         closeTag: true,
@@ -607,10 +611,10 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
           id: mp
         }
       };
-    }))
+    }));
   }
   // Add scripts to body or head
-  if (!! this.options.headScripts) {
+  if (this.options.headScripts) {
     var hScripts = this.options.headScripts;
     head = head.concat(scripts.filter((s) => {
       var src = s.attributes.src;
@@ -620,8 +624,7 @@ HtmlWebpackPlugin.prototype.generateAssetTags = function (assets) {
       var src = s.attributes.src;
       return hScripts.indexOf(src) < 0;
     }));
-  }
-  else if (this.options.inject === 'head') {
+  } else if (this.options.inject === 'head') {
     head = head.concat(scripts);
   } else {
     body = body.concat(scripts);
